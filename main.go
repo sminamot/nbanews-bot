@@ -15,40 +15,6 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
-/*
-var (
-	encryptedGoogleSecret       = os.Getenv("GOOGLE_SECRET")
-	encryptedChannelSecret      = os.Getenv("LINE_CHANNEL_SECRET")
-	encryptedChannelAccessToken = os.Getenv("LINE_CHANNEL_ACCESS_TOKEN")
-	googleSecret                string
-	channelSecret               string
-	channelAccessToken          string
-)
-
-func init() {
-	kmsClient := kms.New(session.New())
-	googleSecret = decryptCipher(kmsClient, encryptedGoogleSecret)
-	channelSecret = decryptCipher(kmsClient, encryptedChannelSecret)
-	channelAccessToken = decryptCipher(kmsClient, encryptedChannelAccessToken)
-}
-
-func decryptCipher(kmsClient *kms.KMS, encrypted string) string {
-	decodedBytes, err := base64.StdEncoding.DecodeString(encrypted)
-	if err != nil {
-		panic(err)
-	}
-	input := &kms.DecryptInput{
-		CiphertextBlob: decodedBytes,
-	}
-	response, err := kmsClient.Decrypt(input)
-	if err != nil {
-		panic(err)
-	}
-	// Plaintext is a byte array, so convert to string
-	return string(response.Plaintext[:])
-}
-*/
-
 func main() {
 	lambda.Start(HandleRequest)
 }
