@@ -1,26 +1,21 @@
 package main
 
 import (
-	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"net/http"
+	"log"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/line/line-bot-sdk-go/linebot"
 	"github.com/sminamot/nbanews"
 	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/sheets/v4"
 )
 
+/*
 var (
 	encryptedGoogleSecret       = os.Getenv("GOOGLE_SECRET")
 	encryptedChannelSecret      = os.Getenv("LINE_CHANNEL_SECRET")
@@ -52,49 +47,24 @@ func decryptCipher(kmsClient *kms.KMS, encrypted string) string {
 	// Plaintext is a byte array, so convert to string
 	return string(response.Plaintext[:])
 }
+*/
 
 func main() {
 	lambda.Start(HandleRequest)
 }
 
-// getClient uses a Context and Config to retrieve a Token
-// then generate a Client. It returns the generated Client.
-func getClient(ctx context.Context, config *oauth2.Config) (*http.Client, error) {
-	base64token := os.Getenv("GOOGLE_TOKEN")
-	var b []byte
-	b, err := base64.StdEncoding.DecodeString(base64token)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to decode base64 token from environment variable. %v", err)
-	}
-	br := bytes.NewReader(b)
-	t := &oauth2.Token{}
-	if err := json.NewDecoder(br).Decode(t); err != nil {
-		return nil, fmt.Errorf("Unable to read token. %v", err)
-	}
-	expiry, _ := time.Parse("2006-01-02", "2017-07-11")
-	t.Expiry = expiry
-	return config.Client(ctx, t), nil
-}
-
 func HandleRequest() error {
-	// fetch last news from spreadsheet
-	//base64secret := os.Getenv("GOOGLE_SECRET")
-	//secret, err := base64.StdEncoding.DecodeString(base64secret)
-	secret, err := base64.StdEncoding.DecodeString(googleSecret)
+	secret, err := base64.StdEncoding.DecodeString(os.Getenv("GOOGLE_SECRET"))
 	if err != nil {
 		return fmt.Errorf("Unable to decode base64 client secret. %v", err)
 	}
 
-	config, err := google.ConfigFromJSON(secret, "https://www.googleapis.com/auth/spreadsheets")
+	conf, err := google.JWTConfigFromJSON(secret, sheets.SpreadsheetsScope)
 	if err != nil {
-		return fmt.Errorf("Unable to parse client secret file to config: %v", err)
-	}
-	ctx := context.Background()
-	client, err := getClient(ctx, config)
-	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
+	client := conf.Client(context.Background())
 	srv, err := sheets.New(client)
 	if err != nil {
 		return fmt.Errorf("Unable to retrieve Sheets Client %v", err)
@@ -151,17 +121,15 @@ func HandleRequest() error {
 	messages = messages[:len(messages)-1]
 
 	// post message
-	//channelSecret := os.Getenv("LINE_CHANNEL_SECRET")
-	//channelAccessToken := os.Getenv("LINE_CHANNEL_ACCESS_TOKEN")
-	channelID := os.Getenv("LINE_CHANNEL_ID")
-
+	channelSecret := os.Getenv("LINE_CHANNEL_SECRET")
+	channelAccessToken := os.Getenv("LINE_CHANNEL_ACCESS_TOKEN")
 	bot, err := linebot.New(channelSecret, channelAccessToken)
 	if err != nil {
 		return err
 	}
 
 	m := linebot.NewTextMessage(strings.Join(messages, "\n"))
-	if _, err := bot.PushMessage(channelID, m).Do(); err != nil {
+	if _, err := bot.BroadcastMessage(m).Do(); err != nil {
 		return err
 	}
 
